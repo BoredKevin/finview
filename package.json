@@ -1,0 +1,20 @@
+{
+  "name": "finview",
+  "version": "0.0.1",
+  "description": "",
+  "homepage": "https://github.com/BoredKevin/finview#readme",
+  "bugs": {
+    "url": "https://github.com/BoredKevin/finview/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BoredKevin/finview.git"
+  },
+  "license": "AGPL-3.0",
+  "author": "BoredKevin",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

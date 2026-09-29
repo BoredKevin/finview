@@ -8,3 +8,5 @@ export * from "./context.js";
 export * from "./database.js";
 export * from "./crud.js";
 export * from "./syncCoordinator.js";
+export * from "./installedParsers.js";
+

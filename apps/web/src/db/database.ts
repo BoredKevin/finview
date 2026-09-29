@@ -4,13 +4,21 @@
 
 import Dexie, { type Table, type Transaction as DexieTransaction } from "dexie";
 import { isRemoteSync } from "./context.js";
-import { Account, CryptoKeyRow, SyncOperation, SyncQueueItem, Transaction } from "./types.js";
+import {
+  Account,
+  CryptoKeyRow,
+  InstalledParser,
+  SyncOperation,
+  SyncQueueItem,
+  Transaction,
+} from "./types.js";
 
 export class AppDB extends Dexie {
   accounts!: Table<Account, string>;
   transactions!: Table<Transaction, string>;
   syncQueue!: Table<SyncQueueItem, number>;
   cryptoKeys!: Table<CryptoKeyRow, string>;
+  installedParsers!: Table<InstalledParser, string>;
 
   constructor(dbName = "finview_db", options?: { indexedDB?: any; IDBKeyRange?: any }) {
     super(dbName, {
@@ -24,6 +32,10 @@ export class AppDB extends Dexie {
       transactions: "id, accountId, date, description, amountMinorUnits, runningBalanceMinorUnits, &hash, updatedAt, deletedAt",
       syncQueue: "++id, table, recordId, operation, queuedAt",
       cryptoKeys: "id, salt, wrappedDekByPassword, wrappedDekByRecovery, ivPassword, ivRecovery",
+    });
+
+    this.version(2).stores({
+      installedParsers: "id, &slug, bankName, country, fileType, installedVersion, updatedAt",
     });
 
     this.attachChangeHooks();

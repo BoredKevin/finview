@@ -4,6 +4,7 @@
  */
 
 import { CryptoKeyRow, EncryptedEnvelope } from "../../../../packages/crypto/src/index.js";
+import { StatementParserConfig } from "../../../../packages/dsl/schema.js";
 
 export type SyncOperation = "UPSERT" | "DELETE";
 
@@ -36,4 +37,23 @@ export interface SyncQueueItem {
   queuedAt: number;
 }
 
+export interface InstalledParser {
+  id: string; // e.g. "id-bca-individual-pdf"
+  slug: string;
+  bankName: string;
+  country: string; // ISO 3166-1 alpha-2
+  fileType: "pdf" | "csv";
+  installedVersion: string; // semver
+  latestAvailableVersion?: string;
+  hasUpdate?: boolean;
+  dslConfig: StatementParserConfig;
+  fixtureSummary?: {
+    totalTransactions: number;
+    isBalanced: boolean;
+  };
+  installedAt: number;
+  updatedAt: number;
+}
+
 export type { CryptoKeyRow, EncryptedEnvelope };
+

@@ -12,10 +12,11 @@
   },
   "license": "AGPL-3.0",
   "author": "BoredKevin",
-  "type": "commonjs",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc --outDir dist --noEmit false",
+    "test": "npm run build && node --test dist/tests/e2ee-sync.test.js"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",

@@ -1,0 +1,9 @@
+{
+  "name": "@finview/dsl",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Declarative JSON DSL Statement Parsing Engine with ReDoS Protection for Finview",
+  "main": "index.ts",
+  "types": "index.ts",
+  "license": "AGPL-3.0"
+}

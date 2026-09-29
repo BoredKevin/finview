@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "bankId": "bca",
+    "name": "BCA Individual Account Statement",
+    "fileType": "pdf",
+    "version": "1.0.0"
+  },
+  "matchers": {
+    "fileType": "pdf",
+    "contentPatterns": [
+      "REKENING KORAN",
+      "BCA|BANK CENTRAL ASIA",
+      "TANGGAL"
+    ]
+  },
+  "pageBounds": {
+    "topMargin": 150,
+    "bottomMargin": 920,
+    "headerPattern": "TANGGAL\\s+KETERANGAN\\s+CB",
+    "footerPattern": "SALDO AWAL|MUTASI CR|MUTASI DB"
+  },
+  "columns": [
+    {
+      "id": "date",
+      "name": "Tanggal",
+      "xStart": 30,
+      "xEnd": 120
+    },
+    {
+      "id": "description",
+      "name": "Keterangan",
+      "xStart": 120,
+      "xEnd": 480
+    },
+    {
+      "id": "branch",
+      "name": "Cabang",
+      "xStart": 480,
+      "xEnd": 550
+    },
+    {
+      "id": "amount",
+      "name": "Mutasi",
+      "xStart": 550,
+      "xEnd": 790
+    },
+    {
+      "id": "balance",
+      "name": "Saldo",
+      "xStart": 790,
+      "xEnd": 980
+    }
+  ],
+  "rowContinuation": {
+    "dateRequired": true,
+    "dateRegex": "^\\d{2}/\\d{2}$",
+    "descriptionJoiner": "\n"
+  },
+  "fields": {
+    "date": {
+      "columnId": "date",
+      "format": "DD/MM"
+    },
+    "description": {
+      "columnIds": [
+        "description"
+      ],
+      "sanitizeRegex": "[\\r\\t]+"
+    },
+    "amountStrategy": {
+      "columnId": "amount",
+      "debitIndicator": {
+        "pattern": "DB",
+        "position": "suffix"
+      },
+      "decimalSep": ",",
+      "thousandSep": "."
+    },
+    "balance": {
+      "columnId": "balance",
+      "optional": false
+    }
+  }
+}

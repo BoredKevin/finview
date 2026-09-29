@@ -7,12 +7,16 @@
     "strict": true,
     "esModuleInterop": true,
     "types": ["node"],
+    "jsx": "react-jsx",
+    "resolveJsonModule": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "paths": {
       "@finview/crypto": ["./packages/crypto/src/index.ts"],
-      "@finview/crypto/*": ["./packages/crypto/src/*"]
+      "@finview/crypto/*": ["./packages/crypto/src/*"],
+      "@finview/dsl": ["./packages/dsl/index.ts"],
+      "@finview/dsl/*": ["./packages/dsl/*"]
     }
   },
   "include": [

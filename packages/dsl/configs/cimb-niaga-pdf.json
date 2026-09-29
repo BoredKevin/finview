@@ -1,0 +1,86 @@
+{
+  "meta": {
+    "bankId": "cimb-niaga",
+    "name": "CIMB Niaga Account Statement",
+    "fileType": "pdf",
+    "version": "1.0.0"
+  },
+  "matchers": {
+    "fileType": "pdf",
+    "contentPatterns": [
+      "CIMB NIAGA",
+      "MUTASI REKENING"
+    ]
+  },
+  "pageBounds": {
+    "topMargin": 160,
+    "bottomMargin": 910,
+    "headerPattern": "TGL TRANSAKSI\\s+TGL EFEKTIF|TANGGAL\\s+KETERANGAN",
+    "footerPattern": "TOTAL TRANSAKSI|TOTAL DEBET|SALDO AKHIR"
+  },
+  "columns": [
+    {
+      "id": "date",
+      "name": "Tanggal Transaksi",
+      "xStart": 30,
+      "xEnd": 120
+    },
+    {
+      "id": "valDate",
+      "name": "Tanggal Valuta",
+      "xStart": 120,
+      "xEnd": 210
+    },
+    {
+      "id": "description",
+      "name": "Uraian Transaksi",
+      "xStart": 210,
+      "xEnd": 520
+    },
+    {
+      "id": "debit",
+      "name": "Debet",
+      "xStart": 520,
+      "xEnd": 670
+    },
+    {
+      "id": "credit",
+      "name": "Kredit",
+      "xStart": 670,
+      "xEnd": 830
+    },
+    {
+      "id": "balance",
+      "name": "Saldo",
+      "xStart": 830,
+      "xEnd": 970
+    }
+  ],
+  "rowContinuation": {
+    "dateRequired": true,
+    "dateRegex": "^\\d{2}/\\d{2}/\\d{4}$",
+    "descriptionJoiner": "\n"
+  },
+  "fields": {
+    "date": {
+      "columnId": "date",
+      "format": "DD/MM/YYYY"
+    },
+    "description": {
+      "columnIds": [
+        "description"
+      ],
+      "sanitizeRegex": "[\\r\\t]+"
+    },
+    "amountStrategy": {
+      "debitColumnId": "debit",
+      "creditColumnId": "credit",
+      "decimalSep": ",",
+      "thousandSep": "."
+    },
+    "balance": {
+      "columnId": "balance",
+      "optional": false
+    }
+  }
+}

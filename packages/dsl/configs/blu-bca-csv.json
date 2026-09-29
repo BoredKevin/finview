@@ -1,0 +1,71 @@
+{
+  "meta": {
+    "bankId": "blu-bca",
+    "name": "blu by BCA Digital CSV Statement",
+    "fileType": "csv",
+    "version": "1.0.0"
+  },
+  "matchers": {
+    "fileType": "csv",
+    "contentPatterns": [
+      "Tanggal Transaksi",
+      "Nominal"
+    ]
+  },
+  "pageBounds": {
+    "topMargin": 0,
+    "bottomMargin": 1000,
+    "headerPattern": "Tanggal Transaksi.*Nominal"
+  },
+  "columns": [
+    {
+      "id": "date",
+      "columnIndex": 0
+    },
+    {
+      "id": "description",
+      "columnIndex": 1
+    },
+    {
+      "id": "type",
+      "columnIndex": 2
+    },
+    {
+      "id": "amount",
+      "columnIndex": 3
+    },
+    {
+      "id": "balance",
+      "columnIndex": 4
+    }
+  ],
+  "rowContinuation": {
+    "dateRequired": true,
+    "dateRegex": "^\\d{4}-\\d{2}-\\d{2}$",
+    "descriptionJoiner": " "
+  },
+  "fields": {
+    "date": {
+      "columnId": "date",
+      "format": "YYYY-MM-DD"
+    },
+    "description": {
+      "columnIds": [
+        "description"
+      ]
+    },
+    "amountStrategy": {
+      "columnId": "amount",
+      "debitIndicator": {
+        "pattern": "-",
+        "position": "prefix"
+      },
+      "decimalSep": ".",
+      "thousandSep": ","
+    },
+    "balance": {
+      "columnId": "balance",
+      "optional": false
+    }
+  }
+}

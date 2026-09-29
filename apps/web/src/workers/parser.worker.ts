@@ -1,0 +1,286 @@
+/**
+ * Web Worker Statement Parser Pipeline
+ * 
+ * Invariants:
+ * 1. Complete Sandbox: Dynamic code evaluation (eval, new Function, dynamic import) is strictly prohibited.
+ * 2. ReDoS Protection: Any regex containing nested repetition or taking >50ms is aborted.
+ * 3. Memory Safety: page.cleanup() after every page, pdfDocument.destroy() after parsing.
+ * 4. Password Interception: Emits password request to host, verifies in worker memory, discards immediately.
+ * 5. PapaParse streaming with auto-delimiter detection.
+ */
+
+import * as Comlink from "comlink";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import Papa from "papaparse";
+
+import {
+  StatementParserConfig,
+  validateStatementParserConfig,
+} from "../../../../packages/dsl/schema.js";
+import {
+  ExtractedRow,
+  StatementParseResult,
+} from "../../../../packages/dsl/types.js";
+import {
+  extractNormalizedSpans,
+  clusterSpansIntoRows,
+} from "../../../../packages/dsl/normalizer.js";
+import {
+  parsePdfRows,
+  parseCsvRows,
+} from "../../../../packages/dsl/engine.js";
+import {
+  ParseWorkerOptions,
+  StatementParserWorkerAPI,
+} from "./types.js";
+
+// Disable any potential dynamic evaluation inside pdfjs
+if (typeof pdfjsLib !== "undefined" && (pdfjsLib as any).GlobalWorkerOptions) {
+  (pdfjsLib as any).GlobalWorkerOptions.workerSrc = "";
+}
+
+export const parserWorkerAPI: StatementParserWorkerAPI = {
+  /**
+   * Health check
+   */
+  async ping(): Promise<string> {
+    return "pong";
+  },
+
+  /**
+   * Identifies the best matching parser config from a sample of document text
+   */
+  identifyConfig(
+    sampleText: string,
+    configs: StatementParserConfig[]
+  ): StatementParserConfig | null {
+    for (const config of configs) {
+      const matchers = config.matchers;
+      if (!matchers || !matchers.contentPatterns) continue;
+
+      const allMatch = matchers.contentPatterns.every((pattern) => {
+        try {
+          const rx = new RegExp(pattern, "i");
+          return rx.test(sampleText);
+        } catch {
+          return sampleText.includes(pattern);
+        }
+      });
+
+      if (allMatch) {
+        return config;
+      }
+    }
+    return null;
+  },
+
+  /**
+   * PDF Parsing Engine with memory safety and credential lifecycle management
+   */
+  async parsePdf(
+    fileBuffer: Uint8Array | ArrayBuffer,
+    options: ParseWorkerOptions
+  ): Promise<StatementParseResult> {
+    const startTime = performance.now();
+    const config = validateStatementParserConfig(options.config);
+
+    // Ephemeral credential storage: discarded immediately in finally block
+    let ephemeralPassword: string | null = options.password ?? null;
+
+    const dataArray =
+      fileBuffer instanceof Uint8Array ? fileBuffer : new Uint8Array(fileBuffer);
+
+    // Instantiate sandboxed pdfjs loading task
+    const loadingTask = pdfjsLib.getDocument({
+      data: dataArray,
+      isEvalSupported: false, // Strict Sandbox invariant: no eval/new Function
+      disableFontFace: true,
+      useSystemFonts: true,
+    } as any);
+
+    // Intercept onPassword callback
+    loadingTask.onPassword = (
+      updatePassword: (password: string) => void,
+      reason: number
+    ) => {
+      // If host provided password in options and this is first attempt
+      if (ephemeralPassword && reason === pdfjsLib.PasswordResponses.NEED_PASSWORD) {
+        updatePassword(ephemeralPassword);
+        return;
+      }
+
+      // If host provided interactive password request handler via Comlink proxy callback
+      if (options.onPasswordRequest) {
+        options
+          .onPasswordRequest()
+          .then((receivedPassword) => {
+            ephemeralPassword = receivedPassword;
+            updatePassword(receivedPassword);
+          })
+          .catch(() => {
+            updatePassword("");
+          });
+        return;
+      }
+
+      // Default: reject with empty password to abort loading
+      updatePassword("");
+    };
+
+    let pdfDocument: any = null;
+    const allExtractedRows: ExtractedRow[] = [];
+
+    try {
+      pdfDocument = await loadingTask.promise;
+      const totalPages = pdfDocument.numPages;
+
+      // Iterate through pages with strict memory safety cleanup
+      for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        const page = await pdfDocument.getPage(pageNum);
+
+        try {
+          const textContent = await page.getTextContent();
+          const viewport = page.getViewport({ scale: 1.0 });
+
+          // Extract text spans & normalize coordinates (0..1000)
+          const spans = extractNormalizedSpans(
+            textContent.items as any,
+            viewport.width,
+            viewport.height
+          );
+
+          // Cluster spans into horizontal rows with Delta y <= 3 tolerance
+          const rows = clusterSpansIntoRows(spans, 3);
+          allExtractedRows.push(...rows);
+
+          if (options.onProgress) {
+            options.onProgress({ currentPage: pageNum, totalPages });
+          }
+        } finally {
+          // System Invariant: Guarantee zero memory accumulation across 100+ pages
+          page.cleanup();
+        }
+      }
+
+      // Parse tabular rows via safe DSL engine under 50ms per-page deadline
+      const transactions = await parsePdfRows(
+        allExtractedRows,
+        config,
+        options.accountId,
+        {
+          accountId: options.accountId,
+          config,
+          deadlineMsPerPage: options.deadlineMsPerPage ?? 50,
+        }
+      );
+
+      const executionTimeMs = performance.now() - startTime;
+
+      return {
+        bankId: config.meta.bankId,
+        configVersion: config.meta.version,
+        fileType: "pdf",
+        transactions,
+        totalPages: totalPages,
+        totalTransactions: transactions.length,
+        executionTimeMs,
+      };
+    } finally {
+      // Discard credentials immediately post-execution
+      ephemeralPassword = null;
+
+      // Explicitly destroy pdfDocument and loading task
+      if (pdfDocument) {
+        try {
+          if (typeof pdfDocument.destroy === "function") {
+            await pdfDocument.destroy();
+          }
+          if (typeof pdfDocument.cleanup === "function") {
+            pdfDocument.cleanup();
+          }
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+
+      if (loadingTask) {
+        try {
+          if (typeof loadingTask.destroy === "function") {
+            await loadingTask.destroy();
+          }
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    }
+  },
+
+  /**
+   * CSV Parsing Engine with PapaParse auto-delimiter detection and streaming row extraction
+   */
+  async parseCsv(
+    csvContent: string | Uint8Array | ArrayBuffer,
+    options: ParseWorkerOptions
+  ): Promise<StatementParseResult> {
+    const startTime = performance.now();
+    const config = validateStatementParserConfig(options.config);
+
+    let csvText: string;
+    if (typeof csvContent === "string") {
+      csvText = csvContent;
+    } else if (csvContent instanceof Uint8Array) {
+      csvText = new TextDecoder("utf-8").decode(csvContent);
+    } else {
+      csvText = new TextDecoder("utf-8").decode(new Uint8Array(csvContent));
+    }
+
+    const streamedRows: string[][] = [];
+
+    // Stream rows using PapaParse with auto-delimiter detection
+    await new Promise<void>((resolve, reject) => {
+      Papa.parse<string[]>(csvText, {
+        delimiter: "", // Auto-delimiter detection (comma, tab, pipe, semicolon)
+        skipEmptyLines: true,
+        step: (results) => {
+          if (results.data && Array.isArray(results.data)) {
+            streamedRows.push(results.data);
+          }
+        },
+        complete: () => {
+          resolve();
+        },
+        error: (error: Error) => {
+          reject(new Error(`PapaParse CSV extraction failed: ${error.message}`));
+        },
+      });
+    });
+
+    const transactions = await parseCsvRows(
+      streamedRows,
+      config,
+      options.accountId,
+      {
+        accountId: options.accountId,
+        config,
+        deadlineMsPerPage: options.deadlineMsPerPage ?? 50,
+      }
+    );
+
+    const executionTimeMs = performance.now() - startTime;
+
+    return {
+      bankId: config.meta.bankId,
+      configVersion: config.meta.version,
+      fileType: "csv",
+      transactions,
+      totalPages: 1,
+      totalTransactions: transactions.length,
+      executionTimeMs,
+    };
+  },
+};
+
+// Expose Comlink RPC interface when executing in Worker / Web Context
+if (typeof self !== "undefined" && typeof (self as any).postMessage === "function") {
+  Comlink.expose(parserWorkerAPI);
+}

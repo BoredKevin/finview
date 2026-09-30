@@ -49,12 +49,27 @@ import {
   Lock,
   Download,
   FolderOpen,
+  ArrowLeft,
 } from "lucide-react";
 
-export const ParserStudio: React.FC = () => {
+export interface ParserStudioProps {
+  initialDocument?: StudioDocument;
+  initialConfig?: StatementParserConfig;
+  onBack?: () => void;
+}
+
+export const ParserStudio: React.FC<ParserStudioProps> = ({
+  initialDocument,
+  initialConfig,
+  onBack,
+}) => {
   // Ephemeral transient document state — INVARIANT 1: Zero Local Retention
-  const [document, setDocument] = useState<StudioDocument>(createDefaultSampleDocument);
-  const [config, setConfig] = useState<StatementParserConfig>(BCA_SAMPLE_CONFIG);
+  const [document, setDocument] = useState<StudioDocument>(
+    initialDocument || createDefaultSampleDocument
+  );
+  const [config, setConfig] = useState<StatementParserConfig>(
+    initialConfig || BCA_SAMPLE_CONFIG
+  );
 
   // Active UI selection
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"wizard" | "ledger" | "sanitizer">("wizard");
@@ -222,11 +237,23 @@ export const ParserStudio: React.FC = () => {
 
   return (
     <ThemeProvider>
-      <div className="flex flex-col h-screen w-screen bg-background text-foreground overflow-hidden font-sans select-none">
+      <div className="flex flex-col h-full w-full bg-background text-foreground overflow-hidden font-sans select-none">
         {/* Studio Top Navigation Bar */}
         <header className="h-12 border-b border-border bg-card/80 backdrop-blur-md px-4 flex items-center justify-between z-20 shrink-0">
           {/* Brand & Statement Title */}
           <div className="flex items-center gap-3">
+            {onBack && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onBack}
+                className="h-8 font-mono text-xs gap-1 text-muted-foreground hover:text-foreground mr-1"
+                title="Return to Dashboard"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Dashboard
+              </Button>
+            )}
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 bg-primary rounded-none rotate-45" />
               <span className="font-mono text-sm font-bold tracking-wider uppercase text-foreground">
@@ -286,6 +313,9 @@ export const ParserStudio: React.FC = () => {
               accept=".pdf,.csv"
               onChange={handleFileUpload}
               className="hidden"
+              style={{ display: "none" }}
+              aria-hidden="true"
+              tabIndex={-1}
             />
             <Button
               variant="outline"

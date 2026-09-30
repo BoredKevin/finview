@@ -1,13 +1,13 @@
 /**
  * FieldMappingForm Component
  * 
- * Form controls to assign canonical targets (Date, Description, Balance, etc.)
+ * Form controls to assign canonical targets (Date, Description, Debit, Credit, Amount, Balance)
  * to detected visual columns.
  */
 
 import React from "react";
 import { Input, Switch, Card, CardHeader, CardTitle, CardContent } from "@boredkevin/ui";
-import { StatementFields } from "../../../../../packages/dsl/schema.js";
+import { StatementFields, AmountStrategy } from "../../../../../packages/dsl/schema.js";
 import { VisualColumn } from "../types.js";
 
 interface FieldMappingFormProps {
@@ -21,6 +21,8 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
   columns,
   onChange,
 }) => {
+  const isSplitAmount = fields.amountStrategy.mode === "split";
+
   return (
     <Card className="border-border bg-card/40">
       <CardHeader className="pb-3">
@@ -126,6 +128,97 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
               className="h-8 font-mono text-xs"
             />
           </div>
+        </div>
+
+        {/* Amount / Debit / Credit Target Columns */}
+        <div className="pt-2 border-t border-border/60">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-mono text-muted-foreground font-semibold">
+              Amount Strategy: {isSplitAmount ? "Split Columns (Debit & Credit)" : "Single Combined Column"}
+            </label>
+            <span className="text-[10px] font-mono text-primary">
+              {isSplitAmount ? "2 COLUMNS" : "1 COLUMN"}
+            </span>
+          </div>
+
+          {isSplitAmount ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-mono text-amber-400 block mb-1">
+                  Debit Column (Outflows)
+                </label>
+                <select
+                  value={(fields.amountStrategy as any).debitColumnId}
+                  onChange={(e) =>
+                    onChange({
+                      ...fields,
+                      amountStrategy: {
+                        ...fields.amountStrategy,
+                        debitColumnId: e.target.value,
+                      } as AmountStrategy,
+                    })
+                  }
+                  className="w-full bg-background border border-border text-foreground font-mono text-xs rounded-none h-8 px-2 focus:ring-1 focus:ring-primary focus:outline-none"
+                >
+                  {columns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-mono text-emerald-400 block mb-1">
+                  Credit Column (Inflows)
+                </label>
+                <select
+                  value={(fields.amountStrategy as any).creditColumnId}
+                  onChange={(e) =>
+                    onChange({
+                      ...fields,
+                      amountStrategy: {
+                        ...fields.amountStrategy,
+                        creditColumnId: e.target.value,
+                      } as AmountStrategy,
+                    })
+                  }
+                  className="w-full bg-background border border-border text-foreground font-mono text-xs rounded-none h-8 px-2 focus:ring-1 focus:ring-primary focus:outline-none"
+                >
+                  {columns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="text-[11px] font-mono text-primary block mb-1">
+                Amount Target Column
+              </label>
+              <select
+                value={(fields.amountStrategy as any).columnId}
+                onChange={(e) =>
+                  onChange({
+                    ...fields,
+                    amountStrategy: {
+                      ...fields.amountStrategy,
+                      columnId: e.target.value,
+                    } as AmountStrategy,
+                  })
+                }
+                className="w-full bg-background border border-border text-foreground font-mono text-xs rounded-none h-8 px-2 focus:ring-1 focus:ring-primary focus:outline-none"
+              >
+                {columns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.id})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Balance Field Mapping */}

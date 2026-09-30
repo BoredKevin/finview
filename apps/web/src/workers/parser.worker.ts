@@ -19,6 +19,7 @@ import {
 } from "../../../../packages/dsl/schema.js";
 import {
   ExtractedRow,
+  NormalizedTextSpan,
   StatementParseResult,
 } from "../../../../packages/dsl/types.js";
 import {
@@ -30,6 +31,8 @@ import {
   parseCsvRows,
 } from "../../../../packages/dsl/engine.js";
 import {
+  DocumentInspectionResult,
+  InspectDocumentOptions,
   ParseWorkerOptions,
   StatementParserWorkerAPI,
 } from "./types.js";
@@ -46,6 +49,171 @@ export const parserWorkerAPI: StatementParserWorkerAPI = {
   async ping(): Promise<string> {
     return "pong";
   },
+
+  /**
+   * Inspects a statement document to extract sample text, first page spans, and detect password or scanned documents.
+   */
+  async inspectDocument(
+    fileData: Uint8Array | ArrayBuffer | string,
+    fileType: "pdf" | "csv",
+    options?: InspectDocumentOptions
+  ): Promise<DocumentInspectionResult> {
+    if (fileType === "csv") {
+      let csvText: string;
+      if (typeof fileData === "string") {
+        csvText = fileData;
+      } else if (fileData instanceof Uint8Array) {
+        csvText = new TextDecoder("utf-8").decode(fileData);
+      } else {
+        csvText = new TextDecoder("utf-8").decode(new Uint8Array(fileData));
+      }
+
+      const rows: string[][] = [];
+      try {
+        Papa.parse<string[]>(csvText.slice(0, 50000), {
+          delimiter: "",
+          skipEmptyLines: true,
+          step: (results) => {
+            if (results.data && Array.isArray(results.data) && rows.length < 50) {
+              rows.push(results.data);
+            }
+          },
+        });
+      } catch (err: any) {
+        return {
+          fileType: "csv",
+          sampleText: "",
+          firstPageSpans: [],
+          totalPages: 1,
+          isPasswordProtected: false,
+          isScanned: false,
+          errorCode: "CSV_PARSE_FAILED",
+          errorMessage: err.message,
+        };
+      }
+
+      const sampleText = rows.map((r) => r.join(" ")).join("\n").slice(0, 4000);
+      return {
+        fileType: "csv",
+        sampleText,
+        firstPageSpans: [],
+        totalPages: 1,
+        isPasswordProtected: false,
+        isScanned: false,
+        csvRows: rows,
+      };
+    }
+
+    // PDF inspection
+    const dataArray =
+      fileData instanceof Uint8Array
+        ? fileData
+        : typeof fileData === "string"
+        ? new TextEncoder().encode(fileData)
+        : new Uint8Array(fileData);
+
+    let isPasswordProtected = false;
+    let ephemeralPassword = options?.password ?? null;
+
+    const loadingTask = pdfjsLib.getDocument({
+      data: dataArray,
+      isEvalSupported: false,
+      disableFontFace: true,
+      useSystemFonts: true,
+    } as any);
+
+    loadingTask.onPassword = (
+      updatePassword: (pw: string) => void,
+      reason: number
+    ) => {
+      isPasswordProtected = true;
+      if (ephemeralPassword && reason === pdfjsLib.PasswordResponses.NEED_PASSWORD) {
+        updatePassword(ephemeralPassword);
+      } else {
+        updatePassword("");
+      }
+    };
+
+    let pdfDocument: any = null;
+    try {
+      pdfDocument = await loadingTask.promise;
+      const totalPages = pdfDocument.numPages;
+
+      let spans: NormalizedTextSpan[] = [];
+      if (totalPages > 0) {
+        const page = await pdfDocument.getPage(1);
+        try {
+          const textContent = await page.getTextContent();
+          const viewport = page.getViewport({ scale: 1.0 });
+          spans = extractNormalizedSpans(
+            textContent.items as any,
+            viewport.width,
+            viewport.height
+          );
+        } finally {
+          page.cleanup();
+        }
+      }
+
+      const isScanned = spans.length === 0;
+      const sampleText = spans.map((s) => s.text).join(" ").slice(0, 4000);
+
+      return {
+        fileType: "pdf",
+        sampleText,
+        firstPageSpans: spans,
+        totalPages,
+        isPasswordProtected: false,
+        isScanned,
+      };
+    } catch (err: any) {
+      if (
+        isPasswordProtected ||
+        err?.name === "PasswordException" ||
+        err?.message?.toLowerCase().includes("password")
+      ) {
+        return {
+          fileType: "pdf",
+          sampleText: "",
+          firstPageSpans: [],
+          totalPages: 0,
+          isPasswordProtected: true,
+          isScanned: false,
+          errorCode: "PASSWORD_REQUIRED",
+          errorMessage: "Document is password encrypted",
+        };
+      }
+
+      return {
+        fileType: "pdf",
+        sampleText: "",
+        firstPageSpans: [],
+        totalPages: 0,
+        isPasswordProtected: false,
+        isScanned: false,
+        errorCode: "PDF_LOAD_FAILED",
+        errorMessage: err.message || "Failed to load PDF document",
+      };
+    } finally {
+      ephemeralPassword = null;
+      if (pdfDocument) {
+        try {
+          if (typeof pdfDocument.destroy === "function") await pdfDocument.destroy();
+          if (typeof pdfDocument.cleanup === "function") pdfDocument.cleanup();
+        } catch {
+          // ignore
+        }
+      }
+      if (loadingTask) {
+        try {
+          if (typeof loadingTask.destroy === "function") await loadingTask.destroy();
+        } catch {
+          // ignore
+        }
+      }
+    }
+  },
+
 
   /**
    * Identifies the best matching parser config from a sample of document text

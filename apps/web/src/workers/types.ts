@@ -3,7 +3,11 @@
  */
 
 import { StatementParserConfig } from "../../../../packages/dsl/schema.js";
-import { ParsedTransaction, StatementParseResult } from "../../../../packages/dsl/types.js";
+import {
+  NormalizedTextSpan,
+  ParsedTransaction,
+  StatementParseResult,
+} from "../../../../packages/dsl/types.js";
 
 export interface ParseWorkerOptions {
   accountId: string;
@@ -12,6 +16,22 @@ export interface ParseWorkerOptions {
   onPasswordRequest?: () => Promise<string>;
   onProgress?: (progress: { currentPage: number; totalPages: number }) => void;
   deadlineMsPerPage?: number;
+}
+
+export interface InspectDocumentOptions {
+  password?: string;
+}
+
+export interface DocumentInspectionResult {
+  fileType: "pdf" | "csv";
+  sampleText: string;
+  firstPageSpans: NormalizedTextSpan[];
+  totalPages: number;
+  isPasswordProtected: boolean;
+  isScanned: boolean;
+  csvRows?: string[][];
+  errorCode?: string;
+  errorMessage?: string;
 }
 
 export interface StatementParserWorkerAPI {
@@ -32,6 +52,15 @@ export interface StatementParserWorkerAPI {
   ): Promise<StatementParseResult>;
 
   /**
+   * Inspects a document to extract first page spans, text signatures, and detect password / scanned status.
+   */
+  inspectDocument(
+    fileData: Uint8Array | ArrayBuffer | string,
+    fileType: "pdf" | "csv",
+    options?: InspectDocumentOptions
+  ): Promise<DocumentInspectionResult>;
+
+  /**
    * Identifies the best matching StatementParserConfig from a document text sample.
    */
   identifyConfig(
@@ -45,4 +74,10 @@ export interface StatementParserWorkerAPI {
   ping(): Promise<string>;
 }
 
-export type { ParsedTransaction, StatementParseResult, StatementParserConfig };
+export type {
+  NormalizedTextSpan,
+  ParsedTransaction,
+  StatementParseResult,
+  StatementParserConfig,
+};
+

@@ -65,3 +65,22 @@ export async function parseStatementFile(
     return await workerClient.parseCsv(fileData, workerOptions);
   }
 }
+
+/**
+ * Inspects a statement file (PDF or CSV) to extract first page spans and check password/scanned state.
+ */
+export async function inspectStatementFile(
+  workerClient: Comlink.Remote<StatementParserWorkerAPI>,
+  fileData: ArrayBuffer | Uint8Array | string,
+  fileType: "pdf" | "csv",
+  options?: { password?: string }
+) {
+  const buffer =
+    typeof fileData === "string"
+      ? fileData
+      : fileData instanceof Uint8Array
+      ? fileData
+      : new Uint8Array(fileData);
+  return await workerClient.inspectDocument(buffer, fileType, options);
+}
+

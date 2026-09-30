@@ -1,5 +1,5 @@
 /**
- * FinView Zero-Knowledge Authentication & Key Derivation Context
+ * Finview Zero-Knowledge Authentication & Key Derivation Context
  * 
  * Manages user sessions with Convex while enforcing cryptographic invariants:
  * 1. Zero plaintext egress: passwords derive local KEK (PBKDF2 600,000 iterations).
@@ -127,7 +127,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setSyncStatus("synced");
     try {
       localStorage.setItem(STORAGE_SYNC_TIME_KEY, now.toString());
-    } catch {}
+    } catch { }
   }, []);
 
   // Verify active session token on mount
@@ -146,7 +146,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUser(profile);
             try {
               localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(profile));
-            } catch {}
+            } catch { }
             setSyncStatus("synced");
           } else {
             // Token expired or invalid
@@ -156,7 +156,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             try {
               localStorage.removeItem(STORAGE_TOKEN_KEY);
               localStorage.removeItem(STORAGE_USER_KEY);
-            } catch {}
+            } catch { }
           }
         }
       } catch (err) {
@@ -203,7 +203,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.setItem(STORAGE_TOKEN_KEY, result.token);
           localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(result.user));
           localStorage.setItem(STORAGE_SYNC_TIME_KEY, now.toString());
-        } catch {}
+        } catch { }
 
         setIsAuthModalOpen(false);
       } finally {
@@ -241,7 +241,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.setItem(STORAGE_TOKEN_KEY, result.token);
           localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(result.user));
           localStorage.setItem(STORAGE_SYNC_TIME_KEY, now.toString());
-        } catch {}
+        } catch { }
 
         setIsAuthModalOpen(false);
       } finally {
@@ -320,7 +320,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         localStorage.removeItem(STORAGE_TOKEN_KEY);
         localStorage.removeItem(STORAGE_USER_KEY);
-      } catch {}
+      } catch { }
       setIsAuthModalOpen(false);
     } finally {
       setIsLoading(false);

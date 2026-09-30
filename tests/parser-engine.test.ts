@@ -494,4 +494,65 @@ describe("7. Worker API & Lifecycle Management (apps/web/src/workers/parser.work
     const matchedUnknown = parserWorkerAPI.identifyConfig(unknownSample, [bcaConfig, cimbConfig]);
     assert.equal(matchedUnknown, null);
   });
+
+  const createSyntheticPdf = (): Uint8Array => {
+    const pdfData = [
+      "%PDF-1.4",
+      "1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj",
+      "2 0 obj <</Type /Pages /Kids [3 0 R] /Count 1>> endobj",
+      "3 0 obj <</Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources <</Font <</F1 5 0 R>>>>>> endobj",
+      "4 0 obj <</Length 68>> stream",
+      "BT /F1 12 Tf 72 700 Td (PT BANK CENTRAL ASIA 01/10 SALDO AWAL 5000000.00) Tj ET",
+      "endstream endobj",
+      "5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /Helvetica>> endobj",
+      "xref",
+      "0 6",
+      "0000000000 65535 f ",
+      "0000000009 00000 n ",
+      "0000000056 00000 n ",
+      "0000000111 00000 n ",
+      "0000000234 00000 n ",
+      "0000000353 00000 n ",
+      "trailer <</Size 6 /Root 1 0 R>>",
+      "startxref",
+      "431",
+      "%%EOF",
+    ].join("\n");
+    return new TextEncoder().encode(pdfData);
+  };
+
+  test("inspects PDF statements without GlobalWorkerOptions.workerSrc error", async () => {
+    const pdfBuffer = createSyntheticPdf();
+    const inspection = await parserWorkerAPI.inspectDocument(pdfBuffer, "pdf");
+
+    assert.equal(inspection.fileType, "pdf");
+    assert.equal(inspection.totalPages, 1);
+    assert.equal(inspection.isPasswordProtected, false);
+    assert.equal(inspection.isScanned, false);
+    assert.ok(inspection.firstPageSpans.length > 0);
+    assert.ok(inspection.sampleText.includes("BANK CENTRAL ASIA"));
+  });
+
+  test("extracts text spans for specific page without memory retention", async () => {
+    const pdfBuffer = createSyntheticPdf();
+    const spans = await parserWorkerAPI.extractPageSpans(pdfBuffer, 1);
+
+    assert.ok(spans.length > 0);
+    assert.ok(spans[0].text.includes("BANK CENTRAL ASIA"));
+    assert.ok(spans[0].x >= 0 && spans[0].x <= 1000);
+    assert.ok(spans[0].y >= 0 && spans[0].y <= 1000);
+  });
+
+  test("parses PDF rows into ledger transactions without worker crash", async () => {
+    const pdfBuffer = createSyntheticPdf();
+    const result = await parserWorkerAPI.parsePdf(pdfBuffer, {
+      accountId: "test-pdf-account",
+      config: bcaConfig,
+      deadlineMsPerPage: 100,
+    });
+
+    assert.equal(result.fileType, "pdf");
+    assert.equal(result.totalPages, 1);
+    assert.ok(result.executionTimeMs >= 0);
+  });
 });

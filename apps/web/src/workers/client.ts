@@ -84,3 +84,21 @@ export async function inspectStatementFile(
   return await workerClient.inspectDocument(buffer, fileType, options);
 }
 
+/**
+ * Extracts page spans for a specific page of a statement file.
+ */
+export async function extractPageSpansFromFile(
+  workerClient: Comlink.Remote<StatementParserWorkerAPI>,
+  fileData: ArrayBuffer | Uint8Array | string,
+  pageNum: number,
+  options?: { password?: string }
+) {
+  const buffer =
+    typeof fileData === "string"
+      ? fileData
+      : fileData instanceof Uint8Array
+      ? fileData
+      : new Uint8Array(fileData);
+  return await workerClient.extractPageSpans(buffer, pageNum, options);
+}
+

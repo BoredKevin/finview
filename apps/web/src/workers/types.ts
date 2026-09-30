@@ -69,6 +69,15 @@ export interface StatementParserWorkerAPI {
   ): StatementParserConfig | null;
 
   /**
+   * Extracts normalized text spans for a specific page of a PDF document.
+   */
+  extractPageSpans(
+    fileData: Uint8Array | ArrayBuffer | string,
+    pageNum: number,
+    options?: { password?: string }
+  ): Promise<NormalizedTextSpan[]>;
+
+  /**
    * Health check / liveness probe for the worker.
    */
   ping(): Promise<string>;

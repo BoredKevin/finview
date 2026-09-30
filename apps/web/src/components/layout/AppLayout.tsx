@@ -1,5 +1,5 @@
 /**
- * FinView Unified Global Application Shell (AppLayout)
+ * Finview Unified Global Application Shell (AppLayout)
  * 
  * Provides consistent top-level navigation, minimal cloud sync status,
  * user profile & master password access, and responsive containment
@@ -43,7 +43,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   let authContext: any = null;
   try {
     authContext = useAuth();
-  } catch {}
+  } catch { }
 
   const effectiveSyncStatus =
     propSyncStatus || authContext?.syncStatus || "local";
@@ -83,7 +83,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") onTabChange("dashboard");
               }}
-              title="FinView — Return to Cockpit"
+              title="Finview — Return to Cockpit"
             >
               <div className="w-3.5 h-3.5 bg-primary rotate-45 group-hover:scale-110 transition-transform shadow-[0_0_12px_rgba(var(--primary-rgb),0.7)]" />
               <span className="font-mono text-base font-black tracking-widest uppercase text-foreground">
@@ -102,11 +102,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 type="button"
                 id="nav-tab-dashboard"
                 onClick={() => onTabChange("dashboard")}
-                className={`px-3 py-1.5 text-xs font-mono rounded flex items-center gap-1.5 transition-all duration-150 ${
-                  activeTab === "dashboard"
+                className={`px-3 py-1.5 text-xs font-mono rounded flex items-center gap-1.5 transition-all duration-150 ${activeTab === "dashboard"
                     ? "bg-primary text-primary-foreground font-bold shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                }`}
+                  }`}
               >
                 <LayoutDashboard className="h-3.5 w-3.5" />
                 <span>Cockpit</span>
@@ -116,11 +115,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 type="button"
                 id="nav-tab-marketplace"
                 onClick={() => onTabChange("marketplace")}
-                className={`px-3 py-1.5 text-xs font-mono rounded flex items-center gap-1.5 transition-all duration-150 ${
-                  activeTab === "marketplace"
+                className={`px-3 py-1.5 text-xs font-mono rounded flex items-center gap-1.5 transition-all duration-150 ${activeTab === "marketplace"
                     ? "bg-primary text-primary-foreground font-bold shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                }`}
+                  }`}
               >
                 <Store className="h-3.5 w-3.5" />
                 <span>Marketplace</span>
@@ -130,11 +128,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 type="button"
                 id="nav-tab-studio"
                 onClick={() => onTabChange("studio")}
-                className={`px-3 py-1.5 text-xs font-mono rounded flex items-center gap-1.5 transition-all duration-150 ${
-                  activeTab === "studio"
+                className={`px-3 py-1.5 text-xs font-mono rounded flex items-center gap-1.5 transition-all duration-150 ${activeTab === "studio"
                     ? "bg-primary text-primary-foreground font-bold shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                }`}
+                  }`}
               >
                 <Wrench className="h-3.5 w-3.5" />
                 <span>Parser Studio</span>
@@ -152,8 +149,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 effectiveSyncStatus === "synced"
                   ? `Zero-knowledge encrypted cloud sync active. (${relativeTime})`
                   : effectiveSyncStatus === "syncing"
-                  ? "Encrypting and synchronizing data with Convex..."
-                  : "Local-first storage active in Dexie. No remote sync."
+                    ? "Encrypting and synchronizing data with Convex..."
+                    : "Local-first storage active in Dexie. No remote sync."
               }
             >
               {effectiveSyncStatus === "syncing" ? (
@@ -205,9 +202,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
         {/* View Content Surface */}
         <main
-          className={`flex-1 flex flex-col overflow-hidden ${
-            activeTab === "studio" ? "p-0 h-[calc(100vh-3.5rem)]" : "overflow-y-auto"
-          }`}
+          className={`flex-1 flex flex-col overflow-hidden ${activeTab === "studio" ? "p-0 h-[calc(100vh-3.5rem)]" : "overflow-y-auto"
+            }`}
         >
           {children}
         </main>

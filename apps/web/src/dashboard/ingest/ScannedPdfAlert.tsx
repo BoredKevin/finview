@@ -3,7 +3,7 @@
  * 
  * Informs the user when an uploaded PDF statement contains zero text spans
  * (i.e. scanned image rather than a vector e-statement).
- * Enforces Zero Data Egress: FinView never sends document images to third-party OCR clouds.
+ * Enforces Zero Data Egress: Finview never sends document images to third-party OCR clouds.
  */
 
 import React from "react";
@@ -54,7 +54,7 @@ export const ScannedPdfAlert: React.FC<ScannedPdfAlertProps> = ({
 
         <div className="space-y-3 font-mono text-xs text-muted-foreground border-y border-border/60 py-3 my-1">
           <p className="text-foreground leading-relaxed">
-            FinView operates under a strict <strong className="text-primary font-bold">Zero Data Egress</strong> invariant. To protect your financial sovereignty, raw banking documents are never transmitted to external third-party cloud OCR services.
+            Finview operates under a strict <strong className="text-primary font-bold">Zero Data Egress</strong> invariant. To protect your financial sovereignty, raw banking documents are never transmitted to external third-party cloud OCR services.
           </p>
 
           <div className="bg-background/60 p-3 rounded border border-border space-y-2">

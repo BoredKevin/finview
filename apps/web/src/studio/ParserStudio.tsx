@@ -31,6 +31,7 @@ import { ConfigWizard } from "./wizard/ConfigWizard.js";
 import { ReconciliationView } from "./reconciliation/ReconciliationView.js";
 import { FixtureGenerator } from "./sanitizer/FixtureGenerator.js";
 import { useDebouncedParse } from "./reconciliation/useDebouncedParse.js";
+import { parserWorkerAPI } from "../workers/parser.worker.js";
 import {
   createDefaultSampleDocument,
   SAMPLE_DOCUMENTS,
@@ -75,6 +76,9 @@ export const ParserStudio: React.FC<ParserStudioProps> = ({
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"wizard" | "ledger" | "sanitizer">("wizard");
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [hoveredColumnId, setHoveredColumnId] = useState<string | null>(null);
+
+  // UI loading state for statement inspection
+  const [isInspecting, setIsInspecting] = useState(false);
 
   // Hidden file input ref for statement uploads
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -170,40 +174,92 @@ export const ParserStudio: React.FC<ParserStudioProps> = ({
     const isPdf = file.name.toLowerCase().endsWith(".pdf");
     const isCsv = file.name.toLowerCase().endsWith(".csv");
 
-    if (isCsv) {
-      const text = await file.text();
-      const lines = text.split(/\r?\n/).map((l) => l.split(","));
-      setDocument({
-        id: `upload-${Date.now()}`,
-        name: file.name,
-        fileType: "csv",
-        data: text,
-        totalPages: 1,
-        currentPage: 1,
-        spansByPage: {},
-        csvRows: lines,
-        isSample: false,
-        uploadedAt: Date.now(),
-      });
-      setConfig(BLU_SAMPLE_CONFIG);
-    } else if (isPdf) {
-      const buffer = await file.arrayBuffer();
-      setDocument({
-        id: `upload-${Date.now()}`,
-        name: file.name,
-        fileType: "pdf",
-        data: new Uint8Array(buffer),
-        totalPages: 1,
-        currentPage: 1,
-        spansByPage: {},
-        isSample: false,
-        uploadedAt: Date.now(),
-      });
-      setConfig(BCA_SAMPLE_CONFIG);
-    }
+    setIsInspecting(true);
+    try {
+      if (isCsv) {
+        const text = await file.text();
+        const inspection = await parserWorkerAPI.inspectDocument(text, "csv");
+        const lines =
+          inspection.csvRows && inspection.csvRows.length > 0
+            ? inspection.csvRows
+            : text.split(/\r?\n/).map((l) => l.split(","));
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+        const matchedConfig = parserWorkerAPI.identifyConfig(inspection.sampleText, [
+          BLU_SAMPLE_CONFIG,
+          BCA_SAMPLE_CONFIG,
+          CIMB_SAMPLE_CONFIG,
+        ]);
+
+        setDocument({
+          id: `upload-${Date.now()}`,
+          name: file.name,
+          fileType: "csv",
+          data: text,
+          totalPages: 1,
+          currentPage: 1,
+          spansByPage: {},
+          csvRows: lines,
+          isSample: false,
+          uploadedAt: Date.now(),
+        });
+        setConfig(matchedConfig || BLU_SAMPLE_CONFIG);
+      } else if (isPdf) {
+        const buffer = await file.arrayBuffer();
+        const uint8Data = new Uint8Array(buffer);
+        const inspection = await parserWorkerAPI.inspectDocument(uint8Data, "pdf");
+
+        const matchedConfig = parserWorkerAPI.identifyConfig(inspection.sampleText, [
+          BCA_SAMPLE_CONFIG,
+          CIMB_SAMPLE_CONFIG,
+          BLU_SAMPLE_CONFIG,
+        ]);
+
+        const totalPages = inspection.totalPages > 0 ? inspection.totalPages : 1;
+        setDocument({
+          id: `upload-${Date.now()}`,
+          name: file.name,
+          fileType: "pdf",
+          data: uint8Data,
+          totalPages,
+          currentPage: 1,
+          spansByPage: { 1: inspection.firstPageSpans || [] },
+          isSample: false,
+          uploadedAt: Date.now(),
+        });
+        setConfig(matchedConfig || BCA_SAMPLE_CONFIG);
+      }
+    } catch (err) {
+      console.error("Failed to inspect uploaded statement:", err);
+    } finally {
+      setIsInspecting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  // On-demand page span loading for multi-page statements
+  const handlePageChange = async (newPage: number) => {
+    setDocument((prev) => ({ ...prev, currentPage: newPage }));
+
+    if (
+      document.fileType === "pdf" &&
+      !document.spansByPage[newPage] &&
+      document.data &&
+      (document.data as Uint8Array).length > 0
+    ) {
+      try {
+        const spans = await parserWorkerAPI.extractPageSpans(document.data, newPage);
+        setDocument((prev) => ({
+          ...prev,
+          spansByPage: {
+            ...prev.spansByPage,
+            [newPage]: spans,
+          },
+        }));
+      } catch (err) {
+        console.error(`Failed to extract spans for page ${newPage}:`, err);
+      }
     }
   };
 
@@ -320,11 +376,12 @@ export const ParserStudio: React.FC<ParserStudioProps> = ({
             <Button
               variant="outline"
               size="sm"
+              disabled={isInspecting}
               onClick={() => fileInputRef.current?.click()}
               className="h-8 font-mono text-xs gap-1"
             >
-              <Upload className="h-3.5 w-3.5" />
-              Upload File
+              <Upload className={`h-3.5 w-3.5 ${isInspecting ? "animate-spin" : ""}`} />
+              {isInspecting ? "Inspecting..." : "Upload File"}
             </Button>
 
             {/* Export Config */}
@@ -375,7 +432,7 @@ export const ParserStudio: React.FC<ParserStudioProps> = ({
               onHoverColumn={setHoveredColumnId}
               onUpdateColumnBounds={handleUpdateColumnBounds}
               onUpdatePageBounds={handleUpdatePageBounds}
-              onPageChange={(page) => setDocument((prev) => ({ ...prev, currentPage: page }))}
+              onPageChange={handlePageChange}
             />
           </div>
 

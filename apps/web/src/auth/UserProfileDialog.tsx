@@ -1,5 +1,5 @@
 /**
- * FinView User Profile & Master Password Dialog
+ * Finview User Profile & Master Password Dialog
  * 
  * Built with @boredkevin/ui:
  * - Guests: Tabbed interface for Sign In and Sign Up.
@@ -43,7 +43,7 @@ export const UserProfileDialog: React.FC = () => {
   let authContext: any = null;
   try {
     authContext = useAuth();
-  } catch {}
+  } catch { }
 
   if (!authContext) return null;
 
@@ -191,7 +191,7 @@ export const UserProfileDialog: React.FC = () => {
               </Avatar>
               <div className="overflow-hidden flex-1">
                 <div className="font-mono text-sm font-bold text-foreground truncate">
-                  {user.name || "FinView Master"}
+                  {user.name || "Finview Master"}
                 </div>
                 <div className="font-mono text-xs text-muted-foreground truncate">
                   {user.email}
@@ -323,7 +323,7 @@ export const UserProfileDialog: React.FC = () => {
               <div className="flex items-center justify-between">
                 <DialogTitle className="text-base font-mono uppercase tracking-wider text-foreground flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-primary" />
-                  FinView Authentication
+                  Finview Authentication
                 </DialogTitle>
                 <Badge
                   variant="outline"

@@ -1,8 +1,8 @@
-# FinView
+# Finview
 
 > Zero-knowledge, local-first financial intelligence & statement parsing platform.
 
-FinView enables automated bank statement ingestion (PDF & CSV), coordinate-normalized tabular extraction, visual parser calibration, client-side financial analytics, cash flow visualization, and decentralized parser sharing without ever transmitting unencrypted financial data to external cloud servers.
+Finview enables automated bank statement ingestion (PDF & CSV), coordinate-normalized tabular extraction, visual parser calibration, client-side financial analytics, cash flow visualization, and decentralized parser sharing without ever transmitting unencrypted financial data to external cloud servers.
 
 ## Quick Links
 - **[System Architecture & Engineering Handbook](docs/README.md)**: In-depth architecture map, threat model, system invariants, and setup guide.

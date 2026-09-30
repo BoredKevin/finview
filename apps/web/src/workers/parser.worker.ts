@@ -11,6 +11,8 @@
 
 import * as Comlink from "comlink";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+// @ts-ignore - pdf.worker.mjs provides in-process WorkerMessageHandler without .d.ts
+import * as pdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
 import Papa from "papaparse";
 
 import {
@@ -37,9 +39,20 @@ import {
   StatementParserWorkerAPI,
 } from "./types.js";
 
-// Disable any potential dynamic evaluation inside pdfjs
+// Register PDF.js worker in-memory message handler for zero-retention sandboxed parsing
+// without external script fetches or dynamic code evaluation
+if (typeof globalThis !== "undefined") {
+  (globalThis as any).pdfjsWorker = pdfjsWorker;
+}
 if (typeof pdfjsLib !== "undefined" && (pdfjsLib as any).GlobalWorkerOptions) {
-  (pdfjsLib as any).GlobalWorkerOptions.workerSrc = "";
+  try {
+    (pdfjsLib as any).GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+      import.meta.url
+    ).toString();
+  } catch {
+    // In environments where import.meta.url is restricted, pdfjsWorker on globalThis provides in-process handling
+  }
 }
 
 export const parserWorkerAPI: StatementParserWorkerAPI = {
@@ -104,13 +117,13 @@ export const parserWorkerAPI: StatementParserWorkerAPI = {
       };
     }
 
-    // PDF inspection
+    // PDF inspection - clone buffer to prevent postMessage transfer detachment
     const dataArray =
-      fileData instanceof Uint8Array
-        ? fileData
-        : typeof fileData === "string"
+      typeof fileData === "string"
         ? new TextEncoder().encode(fileData)
-        : new Uint8Array(fileData);
+        : fileData instanceof Uint8Array
+        ? fileData.slice()
+        : new Uint8Array(fileData).slice();
 
     let isPasswordProtected = false;
     let ephemeralPassword = options?.password ?? null;
@@ -243,6 +256,78 @@ export const parserWorkerAPI: StatementParserWorkerAPI = {
   },
 
   /**
+   * Extracts normalized text spans for a specific page of a PDF document.
+   */
+  async extractPageSpans(
+    fileData: Uint8Array | ArrayBuffer | string,
+    pageNum: number,
+    options?: { password?: string }
+  ): Promise<NormalizedTextSpan[]> {
+    const dataArray =
+      typeof fileData === "string"
+        ? new TextEncoder().encode(fileData)
+        : fileData instanceof Uint8Array
+        ? fileData.slice()
+        : new Uint8Array(fileData).slice();
+
+    const loadingTask = pdfjsLib.getDocument({
+      data: dataArray,
+      isEvalSupported: false,
+      disableFontFace: true,
+      useSystemFonts: true,
+    } as any);
+
+    if (options?.password) {
+      loadingTask.onPassword = (
+        updatePassword: (pw: string) => void,
+        reason: number
+      ) => {
+        if (reason === pdfjsLib.PasswordResponses.NEED_PASSWORD) {
+          updatePassword(options.password!);
+        } else {
+          updatePassword("");
+        }
+      };
+    }
+
+    let pdfDocument: any = null;
+    try {
+      pdfDocument = await loadingTask.promise;
+      if (pageNum < 1 || pageNum > pdfDocument.numPages) {
+        return [];
+      }
+      const page = await pdfDocument.getPage(pageNum);
+      try {
+        const textContent = await page.getTextContent();
+        const viewport = page.getViewport({ scale: 1.0 });
+        return extractNormalizedSpans(
+          textContent.items as any,
+          viewport.width,
+          viewport.height
+        );
+      } finally {
+        page.cleanup();
+      }
+    } finally {
+      if (pdfDocument) {
+        try {
+          if (typeof pdfDocument.destroy === "function") await pdfDocument.destroy();
+          if (typeof pdfDocument.cleanup === "function") pdfDocument.cleanup();
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+      if (loadingTask) {
+        try {
+          if (typeof loadingTask.destroy === "function") await loadingTask.destroy();
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    }
+  },
+
+  /**
    * PDF Parsing Engine with memory safety and credential lifecycle management
    */
   async parsePdf(
@@ -256,7 +341,7 @@ export const parserWorkerAPI: StatementParserWorkerAPI = {
     let ephemeralPassword: string | null = options.password ?? null;
 
     const dataArray =
-      fileBuffer instanceof Uint8Array ? fileBuffer : new Uint8Array(fileBuffer);
+      fileBuffer instanceof Uint8Array ? fileBuffer.slice() : new Uint8Array(fileBuffer).slice();
 
     // Instantiate sandboxed pdfjs loading task
     const loadingTask = pdfjsLib.getDocument({

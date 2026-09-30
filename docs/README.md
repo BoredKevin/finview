@@ -1,12 +1,12 @@
-# FinView System Architecture & Engineering Handbook
+# Finview System Architecture & Engineering Handbook
 
-FinView is a zero-knowledge, local-first financial intelligence platform and statement ingestion pipeline. It allows users to parse proprietary PDF and CSV bank statements, reconcile ledgers with exact mathematical integrity, visualize cash flow trajectories, and discover or share declarative parser layouts without ever exposing unencrypted financial figures to external cloud servers.
+Finview is a zero-knowledge, local-first financial intelligence platform and statement ingestion pipeline. It allows users to parse proprietary PDF and CSV bank statements, reconcile ledgers with exact mathematical integrity, visualize cash flow trajectories, and discover or share declarative parser layouts without ever exposing unencrypted financial figures to external cloud servers.
 
 ---
 
 ## 1. System Invariants
 
-Every subsystem and component in FinView strictly obeys two non-negotiable architectural invariants:
+Every subsystem and component in Finview strictly obeys two non-negotiable architectural invariants:
 
 ### Invariant 1: Zero Data Egress
 - **Client-Side Boundary**: Unencrypted transaction amounts, merchant narratives, bank account numbers, credentials, and ledger balances never leave client memory or unencrypted network packets.

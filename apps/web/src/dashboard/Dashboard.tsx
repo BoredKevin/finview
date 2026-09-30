@@ -1,5 +1,5 @@
 /**
- * FinView Cockpit & Unified Financial Dashboard
+ * Finview Cockpit & Unified Financial Dashboard
  * 
  * Unifies statement ingestion, reactive local-first analytics,
  * running cash flow progression, multi-account portfolio management,

@@ -1,5 +1,5 @@
 /**
- * FinView Application Main Entry Point
+ * Finview Application Main Entry Point
  */
 
 import React from "react";

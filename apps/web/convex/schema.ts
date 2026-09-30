@@ -87,5 +87,23 @@ export default defineSchema({
     .index("by_parserId", ["parserId"])
     .index("by_parserId_createdAt", ["parserId", "createdAt"])
     .index("by_reporterId", ["reporterId"]),
+
+  users: defineTable({
+    email: v.string(),
+    passwordHash: v.string(),
+    salt: v.string(),
+    name: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_email", ["email"]),
+
+  auth_sessions: defineTable({
+    userId: v.id("users"),
+    token: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_userId", ["userId"]),
 });
 
